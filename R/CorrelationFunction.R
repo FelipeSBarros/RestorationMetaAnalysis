@@ -134,3 +134,55 @@ fcn.name <- function(r.model1, r.model2, rmhmodel = FALSE){
   # plot(r.model1, add=T)
   return(inibition_random)
   }
+
+world <- read_sf("/media/felipe/DATA/Proyectos/Dados/IPUMSI_world_release2017/world_countries_2017.shp")
+
+fcn.name <- function(r.model1, r.model2, distance = 600000, meters = TRUE, windowSample = world, nSample = 2000){
+  # r.model1 = stack( list.files("../Data/Raster/Results", pattern = "Abundance_Norm.tif$|ness_Norm.tif$", recursive = TRUE, full.names = TRUE)[1])
+  # r.model2 = stack( list.files("../Data/Raster/Results", pattern = "Abundance_Norm.tif$|ness_Norm.tif$", recursive = TRUE, full.names = TRUE)[2])
+  
+  # loading library
+  library(dplyr)
+  library(spatstat)
+  
+  # changing the distance to decimal degrees
+  if( meters){
+    convertFactor = 111000
+    distance = round(distance / convertFactor, 2)
+  }
+  
+  # defining window to sample
+  world.w <- owin(xrange = extent(
+    windowSample)[1:2], 
+    yrange = extent(
+      windowSample)[3:4])
+  
+  # sampling random points with hinibition
+  inibition_random <- rSSI( r = distance, 
+                            n = nSample,
+                            win = world.w)
+  
+  plot(inibition_random)
+  
+  inibition_random <- st_as_sf(inibition_random)
+  inibition_random <- st_set_crs(inibition_random, 4326)
+  
+  library(sp)
+  class(inibition_random)
+  as(inibition_random, "Spatial")
+  sf::as_Spatial(inibition_random$geom)
+  class(st_cast(inibition_random)  )
+  class(st_sfc(st_geometry(inibition_random)))
+  class(st_sf(st_geometry(inibition_random)))
+  
+  raster::extract(r.model1[[1]], inibition_random)
+  raster::extract(r.model1[[1]], st_sfc(st_geometry(inibition_random)))
+  
+  betaModel <- 10 # what is beta on hardcore model
+  if ( rmhmodel ){
+    model <- rmhmodel(cif = "hardcore", 
+                      par = list(beta = betaModel, hc = distance), 
+                      w = world.w)
+    X2 <- rmh(model)
+    }
+  }
